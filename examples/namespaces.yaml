@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: operations
+  labels:
+    name: operations
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: rnd
+  labels:
+    name: rnd
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: support
+  labels:
+    name: support

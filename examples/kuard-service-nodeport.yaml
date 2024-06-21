@@ -1,0 +1,29 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: kuard-pod-published
+  labels:
+    app: public
+spec:
+  containers:
+    - image: gcr.io/kuar-demo/kuard-amd64:1
+      name: kuard
+      ports:
+        - containerPort: 8080
+          name: http
+          protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: nodeport-service 
+  labels:
+    app: public
+spec:
+  selector:
+    app: public
+  ports:
+    - protocol: TCP
+      port: 8080
+      nodePort: 30080
+  type: NodePort
