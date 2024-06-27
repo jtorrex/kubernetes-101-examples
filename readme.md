@@ -775,8 +775,84 @@ kubectl delete -f kuard-service-nodeport.yaml
 pod "kuard-pod-published" deleted
 service "nodeport-service" deleted
 ```
-
 ## Creating a LoadBalancer service
+
+* Apply the manifest to create a Deployment of 3 Kuard replicas
+
+```
+kubectl apply -f kuard-lb-deployment.yaml
+```
+
+* Apply the manifest to crate a Service of type LoadBalancer to publish the service
+
+```
+kubectl apply -f kuard-lb-svc.yaml
+```
+
+* Verify the information about the Deployment and check in which IPs are running
+
+```
+kubectl get pods -o wide
+NAME                                            READY   STATUS    RESTARTS        AGE     IP           NODE                   NOMINATED NODE   READINESS GATES
+kuard-deployment-76dc59d66c-mxshq               1/1     Running   0               4m18s   10.244.3.6   test-cluster-worker    <none>           <none>
+kuard-deployment-76dc59d66c-xmgbf               1/1     Running   0               34m     10.244.2.5   test-cluster-worker3   <none>           <none>
+kuard-deployment-76dc59d66c-xwnk7               1/1     Running   0               34m     10.244.1.5   test-cluster-worker2   <none>           <none>
+```
+
+* Verify the information about the LoadBalancer Service created, and note the IP assigned to it and the Port that is configured 8080
+
+```
+kubectl get svc -o wide
+NAME               TYPE           CLUSTER-IP     EXTERNAL-IP   PORT(S)          AGE     SELECTOR
+kuard-lb-service   LoadBalancer   10.96.68.254   <pending>     8080:31072/TCP   35m     app=kuard
+```
+
+* To verify that the LoadBalancer is running properly, access an internal node of the cluster
+
+```
+docker exec -it test-cluster-control-plane /bin/bash
+root@test-cluster-control-plane:/#
+```
+
+* Now 'curl' the LoadBalancer IP on the Port where the Service is running and check the field 'addrs' that coresponds to the node that is running the Pod
+
+```
+
+root@test-cluster-control-plane:/# curl http://10.96.68.254:8080 | grep addrs
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  1466  100  1466    0     0  1002k      0 --:--:-- --:--:-- --:--:-- 1431k
+var pageContext = {"hostname":"kuard-deployment-76dc59d66c-xmgbf","addrs":["10.244.2.5"],"version":"v0.8.1-1","versionColor":"hsl(18,100%,50%)","requestDump":"GET / HTTP/1.1\r\nHost: 10.96.68.254:8080\r\nAccept: */*\r\nUser-Agent: curl/7.88.1","requestProto":"HTTP/1.1","requestAddr":"172.19.0.5:20549"}
+root@test-cluster-control-plane:/# curl http://10.96.68.254:8080 | grep addrs
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  1466  100  1466    0     0   795k      0 --:--:-- --:--:-- --:--:-- 1431k
+var pageContext = {"hostname":"kuard-deployment-76dc59d66c-xmgbf","addrs":["10.244.2.5"],"version":"v0.8.1-1","versionColor":"hsl(18,100%,50%)","requestDump":"GET / HTTP/1.1\r\nHost: 10.96.68.254:8080\r\nAccept: */*\r\nUser-Agent: curl/7.88.1","requestProto":"HTTP/1.1","requestAddr":"172.19.0.5:31005"}
+root@test-cluster-control-plane:/# curl http://10.96.68.254:8080 | grep addrs
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  1466  100  1466    0     0   886k      0 --:--:-- --:--:-- --:--:-- 1431k
+var pageContext = {"hostname":"kuard-deployment-76dc59d66c-xwnk7","addrs":["10.244.1.5"],"version":"v0.8.1-1","versionColor":"hsl(18,100%,50%)","requestDump":"GET / HTTP/1.1\r\nHost: 10.96.68.254:8080\r\nAccept: */*\r\nUser-Agent: curl/7.88.1","requestProto":"HTTP/1.1","requestAddr":"172.19.0.5:22786"}
+
+```
+
+* You can note that the traffic is balanced across the nodes as the response is offered from different nodes/IPs
+
+```
+10.244.2.5
+10.244.1.5
+```
+
+* Finally delete the Deployment and the LoadBalancer service
+
+
+```
+kubectl delete -f kuard-lb-deployment.yaml
+```
+
+```
+kubectl delete -f kuard-lb-svc.yaml
+```
 
 ## Creating an HTTP Ingress
 
