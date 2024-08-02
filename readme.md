@@ -864,7 +864,23 @@ You must have an Ingress controller to satisfy an Ingress. Only creating an Ingr
 
 You may need to deploy an Ingress controller such as ingress-nginx. You can choose from a number of Ingress controllers.
 
-* Create these deployments imperatively
+* Deploy the NGINX Ingress Controller on the Kind cluster
+
+```
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/main/deploy/static/provider/kind/deploy.yaml
+```
+
+* Verify that the ingress is Deployed properly
+
+```
+~ ❯ kubectl get pods -n ingress-nginx
+NAME                                       READY   STATUS      RESTARTS   AGE
+ingress-nginx-admission-create-zz4fx       0/1     Completed   0          16m
+ingress-nginx-admission-patch-ctvj4        0/1     Completed   0          16m
+ingress-nginx-controller-d45d995d4-ddch7   1/1     Running     0          16m
+```
+
+* Now that the Ingress controler is deployed in the cluster, create these deployments imperatively to run different applications on the cluster
 
 ```
 kubectl create deployment be-default \
@@ -872,7 +888,6 @@ kubectl create deployment be-default \
 --replicas=3 \
 --port=8080
 ```
-
 
 ```
 kubectl create deployment alpaca \
@@ -888,7 +903,7 @@ kubectl create deployment bandicoot \
 --port=8080
 ```
 
-* Expose it
+* Expose each of them to define the different services
 
 ```
 kubectl expose deployment be-default
@@ -899,16 +914,27 @@ kubectl expose deployment bandicoot
 * List the services created
 
 ```
-kubectl get services -o wide
+kubectl get services -o wide -A
+NAMESPACE       NAME                                 TYPE        CLUSTER-IP      EXTERNAL-IP   PORT(S)                      AGE   SELECTOR
+default         alpaca                               ClusterIP   10.96.214.247   <none>        8080/TCP                     45m   app=alpaca
+default         bandicoot                            ClusterIP   10.96.30.123    <none>        8080/TCP                     45m   app=bandicoot
+default         be-default                           ClusterIP   10.96.1.4       <none>        8080/TCP                     45m   app=be-default
+default         kubernetes                           ClusterIP   10.96.0.1       <none>        443/TCP                      57m   <none>
+default         nginx                                ClusterIP   10.96.38.165    <none>        80/TCP                       15m   app=nginx
+ingress-nginx   ingress-nginx-controller             NodePort    10.96.71.2      <none>        80:31071/TCP,443:30992/TCP   17m   app.kubernetes.io/component=controller,app.kubernetes.io/instance=ingress-nginx,app.kubernetes.io/name=ingress-nginx
+ingress-nginx   ingress-nginx-controller-admission   ClusterIP   10.96.149.234   <none>        443/TCP                      17m   app.kubernetes.io/component=controller,app.kubernetes.io/instance=ingress-nginx,app.kubernetes.io/name=ingress-nginx
+kube-system     kube-dns                             ClusterIP   10.96.0.10      <none>        53/UDP,53/TCP,9153/TCP       57m   k8s-app=kube-dns
 ```
 
-* Now create a simple Ingress to publish the alpaca Deployment
+### Simple ingress
+
+* Create a simple Ingress to publish the Alpaca Deployment
 
 ```
 kubectl apply -f simple-ingress.yaml
 
 ```
-* Now verify that the ingress is properly created
+* Verify that the ingress is properly created
 
 ```
 kubectl get ingress
@@ -923,7 +949,7 @@ kubectl describe ingress simple-ingress
 Name:             simple-ingress
 Labels:           <none>
 Namespace:        default
-Address:
+Address:          localhost
 Ingress Class:    <none>
 Default backend:  alpaca:8080 (10.244.1.3:8080,10.244.2.3:8080,10.244.3.3:8080)
 Rules:
@@ -931,8 +957,44 @@ Rules:
   ----        ----  --------
   *           *     alpaca:8080 (10.244.1.3:8080,10.244.2.3:8080,10.244.3.3:8080)
 Annotations:  <none>
-Events:       <none>
-``
+Events:
+  Type    Reason  Age                From                      Message
+  ----    ------  ----               ----                      -------
+  Normal  Sync    12m (x2 over 13m)  nginx-ingress-controller  Scheduled for sync
+```
+
+* Add an entry to your /etc/hosts file to route kube.local to 127.0.0.1 to perform local tests over a "domain"
+
+```
+echo "127.0.0.1 kube.local" | sudo tee -a /etc/hosts
+```
+
+* Forward the port from the Ingress controller service to localhost on port 8080 for testing
+
+```
+kubectl port-forward --namespace ingress-nginx svc/ingress-nginx-controller 8080:80
+Forwarding from 127.0.0.1:8080 -> 80
+Forwarding from [::1]:8080 -> 80
+```
+
+* Curl or navigate to the local http endpoint where the ingress is forwarded to verify that is properly running
+
+```
+curl http://kube.local:8080
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>KUAR Demo</title>
+
+  <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/static/css/styles.css">
+
+  <script>
+var pageContext = {"urlBase":"","hostname":"alpaca-7d854b686f-j5v4q","addrs":["10.244.1.3"],"version":"v0.10.0-dirty-green","versionColor":"hsl(3,100%,50%)","requestDump":"GET / HTTP/1.1\r\nHost: kube.local:8080\r\nAccept: */*\r\nUser-Age
+```
 
 * Delete the simple Ingress
 
@@ -941,24 +1003,7 @@ kubectl delete -f simple-ingress.yaml
 
 ```
 
-* Port forward to one Pod running the Alpaca service
-
-```
-kubectl port-forward pods/alpaca-7d854b686f-fcg4n 8080:8080
-```
-
-* Verify that the Ingress is running
-
-```
-curl http://127.0.0.1:8080
-```
-
-* Delete the simple Ingress
-
-```
-kubectl delete -f simple-ingress.yaml
-
-```
+### Ingress based on hostnames
 
 * Now create an Ingress that uses Hostames to determine the backend service
 
