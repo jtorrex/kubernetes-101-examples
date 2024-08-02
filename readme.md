@@ -802,7 +802,7 @@ kuard-deployment-76dc59d66c-xwnk7               1/1     Running   0             
 * Verify the information about the LoadBalancer Service created, and note the IP assigned to it and the Port that is configured 8080
 
 ```
-kubectl get svc -o wide
+kubectl get svc -o widec,gg,gg
 NAME               TYPE           CLUSTER-IP     EXTERNAL-IP   PORT(S)          AGE     SELECTOR
 kuard-lb-service   LoadBalancer   10.96.68.254   <pending>     8080:31072/TCP   35m     app=kuard
 ```
@@ -856,6 +856,112 @@ kubectl delete -f kuard-lb-svc.yaml
 
 ## Creating an HTTP Ingress
 
+An Ingress may be configured to give Services externally-reachable URLs, load balance traffic, terminate SSL / TLS, and offer name-based virtual hosting. 
+
+An Ingress controller is responsible for fulfilling the Ingress, usually with a load balancer, though it may also configure your edge router or additional frontends to help handle the traffic.
+
+You must have an Ingress controller to satisfy an Ingress. Only creating an Ingress resource has no effect.
+
+You may need to deploy an Ingress controller such as ingress-nginx. You can choose from a number of Ingress controllers.
+
+* Create these deployments imperatively
+
+```
+kubectl create deployment be-default \
+--image=gcr.io/kuar-demo/kuard-amd64:blue \
+--replicas=3 \
+--port=8080
+```
+
+
+```
+kubectl create deployment alpaca \
+--image=gcr.io/kuar-demo/kuard-amd64:green \
+--replicas=3 \
+--port=8080
+```
+
+```
+kubectl create deployment bandicoot \
+--image=gcr.io/kuar-demo/kuard-amd64:purple \
+--replicas=3 \
+--port=8080
+```
+
+* Expose it
+
+```
+kubectl expose deployment be-default
+kubectl expose deployment alpaca
+kubectl expose deployment bandicoot
+```
+
+* List the services created
+
+```
+kubectl get services -o wide
+```
+
+* Now create a simple Ingress to publish the alpaca Deployment
+
+```
+kubectl apply -f simple-ingress.yaml
+
+```
+
+* Delete the simple Ingress
+
+```
+kubectl delete -f simple-ingress.yaml
+
+```
+
+* Port forward to one Pod running the Alpaca service
+
+```
+kubectl port-forward pods/alpaca-7d854b686f-fcg4n 8080:8080
+```
+
+* Verify that the Ingress is running
+
+```
+curl http://127.0.0.1:8080
+```
+
+* Delete the simple Ingress
+
+```
+kubectl delete -f simple-ingress.yaml
+
+```
+
+* Now create an Ingress that uses Hostames to determine the backend service
+
+```
+kubectl apply -f host-ingress.yaml
+
+```
+
+* Delete the Hosts Ingress
+
+```
+kubectl delete -f host-ingress.yaml
+
+```
+
+* Now create an Ingress that uses Paths to determine the backend service
+
+```
+kubectl apply -f path-ingress.yaml
+
+```
+
+* Delete the Paths Ingress
+
+```
+kubectl delete -f path-ingress.yaml
+
+```
 ## Creating a ReplicaSet
 
 ## Creating a Deployment
