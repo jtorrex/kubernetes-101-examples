@@ -908,6 +908,31 @@ kubectl get services -o wide
 kubectl apply -f simple-ingress.yaml
 
 ```
+* Now verify that the ingress is properly created
+
+```
+kubectl get ingress
+NAME             CLASS    HOSTS   ADDRESS   PORTS   AGE
+simple-ingress   <none>   *                 80      2m10s
+```
+
+* Describe the ingress to view the details about it
+
+```
+kubectl describe ingress simple-ingress
+Name:             simple-ingress
+Labels:           <none>
+Namespace:        default
+Address:
+Ingress Class:    <none>
+Default backend:  alpaca:8080 (10.244.1.3:8080,10.244.2.3:8080,10.244.3.3:8080)
+Rules:
+  Host        Path  Backends
+  ----        ----  --------
+  *           *     alpaca:8080 (10.244.1.3:8080,10.244.2.3:8080,10.244.3.3:8080)
+Annotations:  <none>
+Events:       <none>
+``
 
 * Delete the simple Ingress
 
