@@ -893,7 +893,7 @@ kubectl create deployment be-default \
 kubectl create deployment alpaca \
 --image=gcr.io/kuar-demo/kuard-amd64:green \
 --replicas=3 \
---port=8080
+--port=808
 ```
 
 ```
@@ -979,6 +979,8 @@ Forwarding from [::1]:8080 -> 80
 
 * Curl or navigate to the local http endpoint where the ingress is forwarded to verify that is properly running
 
+http://alpaca.kube.local:8008
+
 ```
 curl http://kube.local:8080
 <!doctype html>
@@ -1005,11 +1007,103 @@ kubectl delete -f simple-ingress.yaml
 
 ### Ingress based on hostnames
 
+Things start to get interesting when we start to direct traffic based on properties of
+the request. The most common example of this is to have the Ingress system look at
+the HTTP host header (which is set to the DNS domain in the original URL) and
+direct traffic based on that header
+
+* First, add the different hostnames to refer services on /etc/hosts
+
+
+```
+echo "127.0.0.1 alpaca.kube.local" | sudo tee -a /etc/hosts
+echo "127.0.0.1 be-default.kube.local" | sudo tee -a /etc/hosts
+echo "127.0.0.1 bandicoot.kube.local" | sudo tee -a /etc/hosts
+```
+
 * Now create an Ingress that uses Hostames to determine the backend service
 
 ```
 kubectl apply -f host-ingress.yaml
 
+```
+* Verify and describe the ingress created
+
+```
+kubectl get ingress && kubectl describe ingress host-ingress
+NAME             CLASS    HOSTS                                    ADDRESS     PORTS   AGE
+host-ingress     <none>   alpaca.kube.local,bandicoot.kube.local               80      14s
+
+Name:             host-ingress
+Labels:           <none>
+Namespace:        default
+Address:
+Ingress Class:    <none>
+Default backend:  be-default:8080 (10.244.1.2:8080,10.244.2.2:8080,10.244.3.2:8080)
+Rules:
+  Host                  Path  Backends
+  ----                  ----  --------
+  alpaca.kube.local
+                        /   alpaca:8080 (10.244.1.3:8080,10.244.2.3:8080,10.244.3.3:8080)
+  bandicoot.kube.local
+                        /   bandicoot:8080 (10.244.1.4:8080,10.244.2.4:8080,10.244.3.4:8080)
+Annotations:            <none>
+Events:
+  Type    Reason  Age   From                      Message
+  ----    ------  ----  ----                      -------
+  Normal  Sync    14s   nginx-ingress-controller  Scheduled for sync
+
+```
+
+* Forward the port from the Ingress controller service to localhost on port 8080 for testing
+
+```
+kubectl port-forward --namespace ingress-nginx svc/ingress-nginx-controller 8080:80
+Forwarding from 127.0.0.1:8080 -> 80
+Forwarding from [::1]:8080 -> 80
+```
+
+* Verify the endpoint for the alpaca service on the domain that we defined on the /etc/hosts files (http://alpaca.kube.local)
+
+http://alpaca.kube.local:8008
+
+```
+curl http://alpaca.kube.local:8080
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>KUAR Demo</title>
+
+  <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/static/css/styles.css">
+
+  <script>
+var pageContext = {"urlBase":"","hostname":"alpaca-7d854b686f-mwpnp","addrs":["10.244.2.3"],"version":"v0.10.0-dirty-green","versionColor":"hsl(3,100%,50%)","requestDump":"GET / HTTP/1.1\r\nHost: alpaca.kube.local:8080\r\nAccept: */*\r\nUser-Agent: curl/8.9.0\r\nX-Forwarded-For: 127.0.0.1\r\nX-Forwarded-Host: alpaca.kube.local:8080\r\nX-Forwarded-Port: 80\r\nX-Forwarded-Proto: http\r\nX-Forwarded-Scheme: http\r\nX-Real-Ip: 127.0.0.1\r\nX-Request-Id: f9f417df3caca41607803cfc3b
+
+```
+
+* Verify the endpoint for the bandicoot service on the domain that we defined on the /etc/hosts files (http://bandicoot.kube.local)
+
+http://bandicoot.kube.local:8008
+
+```
+hpcnow/kubernetes-101-examples/examples on 🌱main [!] ❯ curl http://bandicoot.kube.local:8080
+<!doctype html>
+
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+
+  <title>KUAR Demo</title>
+
+  <link rel="stylesheet" href="/static/css/bootstrap.min.css">
+  <link rel="stylesheet" href="/static/css/styles.css">
+
+  <script>
+var pageContext = {"urlBase":"","hostname":"bandicoot-57678d4f47-ttpn2","addrs":["10.244.3.4"],"version":"v0.10.0-purple","versionColor":"hsl(293,100%,50%)","requestDump":"GET / HTTP/1.1\r\nHost: bandicoot.kube.local:8080\r\nAccept: */*\r\nUser-Agent: curl/8.9.0\r\nX-Forwarded-For: 127.0.0.1\r\nX-Forwarded-Host: bandicoot.kube.local:8080\r\nX-Forwarded-Port: 80\r\nX-Forwarded-Proto: http\r\nX-Forwarded-Scheme: http\r\nX-Real-Ip: 127.0.0.1\r\nX-Request-Id: 48e5cd152138ffa8fe97
 ```
 
 * Delete the Hosts Ingress
@@ -1018,6 +1112,8 @@ kubectl apply -f host-ingress.yaml
 kubectl delete -f host-ingress.yaml
 
 ```
+
+### Paths Ingress
 
 * Now create an Ingress that uses Paths to determine the backend service
 

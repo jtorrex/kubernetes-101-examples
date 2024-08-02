@@ -9,7 +9,7 @@ spec:
       port:
         number: 8080
   rules:
-  - host: alpaca.example.com
+  - host: alpaca.kube.local
     http:
       paths:
       - pathType: Prefix
@@ -17,5 +17,15 @@ spec:
         backend:
           service:
             name: alpaca
+            port:
+              number: 8080
+  - host: bandicoot.kube.local
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: bandicoot 
             port:
               number: 8080
