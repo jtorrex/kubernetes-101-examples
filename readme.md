@@ -979,7 +979,7 @@ Forwarding from [::1]:8080 -> 80
 
 * Curl or navigate to the local http endpoint where the ingress is forwarded to verify that is properly running
 
-http://alpaca.kube.local:8008
+[http://alpaca.kube.local:8008]
 
 ```
 curl http://kube.local:8080
@@ -1065,7 +1065,7 @@ Forwarding from [::1]:8080 -> 80
 
 * Verify the endpoint for the alpaca service on the domain that we defined on the /etc/hosts files (http://alpaca.kube.local)
 
-http://alpaca.kube.local:8008
+[http://alpaca.kube.local:8008]
 
 ```
 curl http://alpaca.kube.local:8080
@@ -1087,7 +1087,7 @@ var pageContext = {"urlBase":"","hostname":"alpaca-7d854b686f-mwpnp","addrs":["1
 
 * Verify the endpoint for the bandicoot service on the domain that we defined on the /etc/hosts files (http://bandicoot.kube.local)
 
-http://bandicoot.kube.local:8008
+[http://bandicoot.kube.local:8008]
 
 ```
 hpcnow/kubernetes-101-examples/examples on 🌱main [!] ❯ curl http://bandicoot.kube.local:8080
@@ -1115,10 +1115,61 @@ kubectl delete -f host-ingress.yaml
 
 ### Paths Ingress
 
+The next interesting scenario is to direct traffic based on not just the hostname, but
+also the path in the HTTP request. We can do this easily by specifying a path in the
+paths entry. In this example we direct everything coming into
+http://bandicoot.kube.local to the bandicoot service, but we also send http://bandi‐
+coot.kube.local/a to the alpaca service. This type of scenario can be used to host
+multiple services on different paths of a single domain.
+
+When there are multiple paths on the same host listed in the Ingress system, the
+longest prefix matches. So, in this example, traffic starting with /a/ is forwarded to
+the alpaca service, while all other traffic (starting with /) is directed to the bandicoot
+service.
+
+As requests get proxied to the upstream service, the path remains unmodified. That
+means a request to bandicoot.example.com/a/ shows up to the upstream server that
+is configured for that request hostname and path. The upstream service needs to be
+ready to serve traffic on that subpath. In this case, kuard has special code for testing,
+where it responds on the root path (/) along with a predefined set of subpaths (/
+a/, /b/, and /c/).
+
 * Now create an Ingress that uses Paths to determine the backend service
 
 ```
 kubectl apply -f path-ingress.yaml
+
+```
+* Ensure to forward the port from the Ingress controller service to localhost on port 8080 for testing
+
+```
+kubectl port-forward --namespace ingress-nginx svc/ingress-nginx-controller 8080:80
+Forwarding from 127.0.0.1:8080 -> 80
+Forwarding from [::1]:8080 -> 80
+```
+
+* Verify that a petition on the default hostname points to the bandicoot service
+
+[http://bandicoot.kube.local:8080]
+
+```
+curl http://bandicoot.kube.local:8080 | grep bandicoot
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  1734  100  1734    0     0   469k      0 --:--:-- --:--:-- --:--:--  564k
+var pageContext = {"urlBase":"","hostname":"bandicoot-57678d4f47-5vgfd","addrs":["10.244.2.4"],"version":"v0.10.0-purple","versionColor":"hsl(293,100%,50%)","requestDump":"GET / HTTP/1.1\r\nHost: bandicoot.kube.local:8080\r\nAccept: */*\r\nUser-Agent: curl/8.9.0\r\nX-Forwarded-For: 127.0.0.1\r\nX-Forwarded-Host: bandicoot.kube.local:8080\r\nX-Forwarded-Port: 80\r\nX-Forwarded-Proto: http\r\nX-Forwarded-Scheme: http\r\nX-Real-Ip: 127.0.0.1\r\nX-Request-Id: 438ec08f1813d6f87929ebc7cc921ca8\r\nX-Scheme: http","requestProto":"HTTP/1.1","requestAddr":"10.244.0.5:48534"}
+```
+
+* Verify that a petition on the subpath of the hostaneme points to the **alpaca** service
+
+[http://bandicoot.kube.local:8080/a/]
+
+```
+curl http://bandicoot.kube.local:8080/a/ | grep alpaca
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+100  1738  100  1738    0     0   129k      0 --:--:-- --:--:-- --:--:--  141k
+var pageContext = {"urlBase":"/a","hostname":"alpaca-7d854b686f-f65cn","addrs":["10.244.3.3"],"version":"v0.10.0-dirty-green","versionColor":"hsl(3,100%,50%)","requestDump":"GET /a/ HTTP/1.1\r\nHost: bandicoot.kube.local:8080\r\nAccept: */*\r\nUser-Agent: curl/8.9.0\r\nX-Forwarded-For: 127.0.0.1\r\nX-Forwarded-Host: bandicoot.kube.local:8080\r\nX-Forwarded-Port: 80\r\nX-Forwarded-Proto: http\r\nX-Forwarded-Scheme: http\r\nX-Real-Ip: 127.0.0.1\r\nX-Request-Id: 064c678104c2ee834b15ffdbd8ceb507\r\nX-Scheme: http","requestProto":"HTTP/1.1","requestAddr":"10.244.0.5:33042"}
 
 ```
 

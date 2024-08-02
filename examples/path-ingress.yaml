@@ -4,7 +4,7 @@ metadata:
   name: path-ingress
 spec:
   rules:
-  - host: bandicoot.example.com
+  - host: bandicoot.kube.local
     http:
       paths:
       - pathType: Prefix
